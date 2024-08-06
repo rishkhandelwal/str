@@ -5,6 +5,6 @@ sqlalchemy
 langchain_groq
 langchain
 langchain-community
-psycopg2
+psycopg2-binary
 python-dotenv
 numpy
