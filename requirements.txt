@@ -1,0 +1,10 @@
+openai
+streamlit
+audio_recorder_streamlit
+sqlalchemy
+langchain_groq
+langchain
+langchain-community
+psycopg2
+python-dotenv
+numpy
