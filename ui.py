@@ -53,6 +53,12 @@ prompt = ChatPromptTemplate.from_messages(
         Language Handling:
 
         Answer in the language in which the user asked you.
+
+        Formatting Rules:
+        - Use standard text for most responses.
+        - Use **bold** for product names.
+        - Use *italics* for prices.
+        - Use bullet points for listing features.
         
         Product Querying:
 
@@ -105,11 +111,7 @@ prompt = ChatPromptTemplate.from_messages(
         4. Follow-up: Ask if the information was helpful or if they need more details.
         5. Closing: End conversations politely, inviting further questions.
         
-        Formatting Rules:
-        - Use standard text for most responses.
-        - Use **bold** for product names.
-        - Use *italics* for prices.
-        - Use bullet points for listing features.
+        
         """
         ),
         ("human", "{question}\nAI:")
