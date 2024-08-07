@@ -10,7 +10,6 @@ import time
 import os
 import warnings
 import logging
-import asyncio
 
 from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
@@ -26,7 +25,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 load_dotenv()
 
 # Set up OpenAI client
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Set up database connection
 cs = "postgresql+psycopg2://aswin:telic@34.93.140.8:5432/testdb"
@@ -42,6 +41,7 @@ llm = ChatGroq(
     max_retries=2,
 )
 sql_toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+sql_toolkit.get_tools()
 
 # Define the prompt template
 prompt = ChatPromptTemplate.from_messages(
@@ -128,16 +128,16 @@ agent = create_sql_agent(
 )
 
 # Function to convert speech to text
-async def speech_to_text(audio_file):
-    transcription = await client.audio.transcriptions.create(model="whisper-1", file=audio_file)
-    return transcription['text']
+def speech_to_text(audio_file):
+    transcription = client.audio.transcriptions.create(model="whisper-1", file=open(audio_file, "rb"))
+    return transcription.text
 
 # Function to convert text to speech using BytesIO
-async def text_to_speech(text):
+def text_to_speech(text):
     try:
         audio_stream = BytesIO()
 
-        async with client.audio.speech.with_streaming_response.create(
+        with client.audio.speech.with_streaming_response.create(
                 model='tts-1',
                 voice='nova',
                 response_format='pcm',
@@ -148,7 +148,7 @@ async def text_to_speech(text):
             wf.setsampwidth(2)  # Assuming 16-bit PCM
             wf.setframerate(24000)
 
-            async for chunk in response_stream.iter_bytes(chunk_size=1024):
+            for chunk in response_stream.iter_bytes(chunk_size=1024):
                 wf.writeframes(chunk)
 
             wf.close()
@@ -161,9 +161,9 @@ async def text_to_speech(text):
     return None
 
 # Function to get the final answer
-async def get_final_answer(question):
+def get_final_answer(question):
     try:
-        output = await agent.invoke(prompt.format_prompt(question=question))
+        output = agent.invoke(prompt.format_prompt(question=question))
         if isinstance(output, dict) and 'output' in output:
             output_text = output['output']
             if "Final Answer:" in output_text:
@@ -173,7 +173,7 @@ async def get_final_answer(question):
         else:
             final_answer = str(output)
 
-        audio_stream = await text_to_speech(final_answer)
+        audio_stream = text_to_speech(final_answer)
         if audio_stream:
             return audio_stream, final_answer
         return None, final_answer
@@ -193,7 +193,7 @@ input_option = st.radio("Choose input type:", ("Text", "Audio"))
 if input_option == "Text":
     question = st.chat_input("Enter your question:")
     if question:
-        audio_stream, final_answer = await get_final_answer(question)
+        audio_stream, final_answer = get_final_answer(question)
         st.session_state.chat_history.append({"question": question, "answer": final_answer})
         st.write("Answer:", final_answer)
         if audio_stream:
@@ -202,13 +202,15 @@ if input_option == "Text":
 elif input_option == "Audio":
     audio_bytes = audio_recorder()
     if audio_bytes:
-        # Handle audio data in-memory
-        audio_stream = BytesIO(audio_bytes)
+        # Save the audio file
+        wavfile = f"realtime_audio_{int(time.time())}.wav"
+        with open(wavfile, "wb") as f:
+            f.write(audio_bytes)
         
         st.write("Audio recorded. Processing...")
-        question = await speech_to_text(audio_stream)
+        question = speech_to_text(wavfile)
         st.write("Transcribed Question:", question)
-        audio_stream, final_answer = await get_final_answer(question)
+        audio_stream, final_answer = get_final_answer(question)
         st.session_state.chat_history.append({"question": question, "answer": final_answer})
         st.write("Answer:", final_answer)
         if audio_stream:
